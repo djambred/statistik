@@ -1,0 +1,27 @@
+{
+  "sales": {
+    "labels": ["Q1 2024", "Q2 2024", "Q3 2024", "Q4 2024"],
+    "values": [45000, 67000, 82000, 91000],
+    "title": "Quarterly Sales Performance"
+  },
+  "survey": {
+    "labels": ["Very Satisfied", "Satisfied", "Neutral", "Dissatisfied", "Very Dissatisfied"],
+    "values": [45, 30, 15, 8, 2],
+    "title": "Customer Satisfaction Survey"
+  },
+  "grades": {
+    "labels": ["A", "B", "C", "D", "E"],
+    "values": [25, 35, 20, 15, 5],
+    "title": "Student Grades Distribution"
+  },
+  "traffic": {
+    "labels": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    "values": [1200, 1500, 1800, 2100, 2500, 3000, 2800],
+    "title": "Website Traffic (Weekly)"
+  },
+  "temperature": {
+    "labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
+    "values": [18, 20, 25, 28, 32, 35],
+    "title": "Average Temperature (°C)"
+  }
+}

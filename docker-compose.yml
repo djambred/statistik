@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  ar-stats-app:
+    # Build configuration
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    # Container name
+    container_name: ar-stats-visualization
+    
+    # Port mapping
+    ports:
+      - "8080:80"
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Environment variables
+    environment:
+      - NGINX_HOST=localhost
+      - NGINX_PORT=80
+    
+    # Volume mounting for development (hot reload)
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html
+      - ./ar.html:/usr/share/nginx/html/ar.html
+      - ./style.css:/usr/share/nginx/html/style.css
+      - ./app.js:/usr/share/nginx/html/app.js
+      - ./assets:/usr/share/nginx/html/assets
+    
+    # Network
+    networks:
+      - ar-network
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  ar-network:
+    driver: bridge

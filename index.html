@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Statistics Visualization</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 AR Statistics Visualization</h1>
+            <p>Visualisasikan data statistik Anda dalam Augmented Reality 3D</p>
+        </header>
+
+        <main>
+            <!-- Chart Type Selection -->
+            <section class="chart-type-section">
+                <h2>Pilih Jenis Chart</h2>
+                <div class="chart-types">
+                    <button class="chart-type-btn active" data-type="bar">
+                        <span class="icon">📊</span>
+                        <span>Bar Chart</span>
+                    </button>
+                    <button class="chart-type-btn" data-type="pie">
+                        <span class="icon">🥧</span>
+                        <span>Pie Chart</span>
+                    </button>
+                    <button class="chart-type-btn" data-type="histogram">
+                        <span class="icon">📈</span>
+                        <span>Histogram</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Data Input Section -->
+            <section class="data-input-section">
+                <h2>Input Data</h2>
+                
+                <div class="input-method">
+                    <button class="method-btn active" data-method="manual">Manual Input</button>
+                    <button class="method-btn" data-method="sample">Use Sample Data</button>
+                </div>
+
+                <!-- Manual Input -->
+                <div id="manual-input" class="input-form">
+                    <div class="form-group">
+                        <label>Labels (pisahkan dengan koma):</label>
+                        <input type="text" id="labels-input" placeholder="Q1, Q2, Q3, Q4">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Values (pisahkan dengan koma):</label>
+                        <input type="text" id="values-input" placeholder="45, 67, 82, 91">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Chart Title:</label>
+                        <input type="text" id="title-input" placeholder="Sales Data 2024">
+                    </div>
+                </div>
+
+                <!-- Sample Data (Hidden by default) -->
+                <div id="sample-input" class="input-form" style="display: none;">
+                    <select id="sample-select">
+                        <option value="sales">Sales Data</option>
+                        <option value="survey">Survey Results</option>
+                        <option value="grades">Student Grades</option>
+                    </select>
+                </div>
+
+                <!-- Data Preview -->
+                <div class="data-preview">
+                    <h3>Preview Data:</h3>
+                    <div id="preview-content">
+                        <p class="placeholder">Data akan muncul di sini...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Launch AR Button -->
+            <div class="action-section">
+                <button id="launch-ar-btn" class="launch-btn">
+                    <span>🚀 Launch AR View</span>
+                </button>
+            </div>
+
+            <!-- Info Section -->
+            <section class="info-section">
+                <h3>ℹ️ Cara Menggunakan:</h3>
+                <ol>
+                    <li>Pilih jenis chart yang diinginkan</li>
+                    <li>Input data atau pilih sample data</li>
+                    <li>Klik "Launch AR View"</li>
+                    <li>Izinkan akses kamera</li>
+                    <li>Arahkan kamera ke permukaan datar</li>
+                    <li>Tap untuk menempatkan chart</li>
+                </ol>
+            </section>
+        </main>
+
+        <footer>
+            <p>💡 Butuh browser dengan WebXR support (Chrome di Android / Safari di iOS)</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
