@@ -37,76 +37,49 @@ const SAMPLE_DATA = {
     }
 };
 
+// Flag: enable auto-place globally for AR view.
+// ar.html will consult this to decide whether to attach tap-to-place.
+window.AUTO_PLACE = true;
+
 // ===== Helper: unified interaction listener (pointer/touch/click) =====
 function addInteractionListener(el, handler, options = {}) {
     if (!el) return;
-    // Use pointer events when available; fallback to touchend and click.
-    const once = options.once || false;
     const passive = options.passive !== undefined ? options.passive : true;
-
     const wrapped = (ev) => {
         // prevent double firing when touch triggers click
-        if (ev.type === 'touchend') {
-            ev.preventDefault?.();
-        }
+        if (ev.type === 'touchend') ev.preventDefault?.();
         handler(ev);
     };
 
-    // Prefer pointer events
     if (window.PointerEvent) {
         el.addEventListener('pointerdown', wrapped, { passive });
     } else {
         el.addEventListener('touchend', wrapped, { passive });
         el.addEventListener('click', wrapped, { passive });
     }
-
-    if (once) {
-        const remover = () => {
-            if (window.PointerEvent) {
-                el.removeEventListener('pointerdown', wrapped);
-            } else {
-                el.removeEventListener('touchend', wrapped);
-                el.removeEventListener('click', wrapped);
-            }
-        };
-        // Try to remove after first invocation
-        el.addEventListener('click', remover, { once: true });
-    }
 }
 
 // ==================== Initialization ====================
 document.addEventListener('DOMContentLoaded', () => {
-    // Make sure mobile viewport scaling is acceptable (HTML should include proper meta tag)
     initResponsiveFixes();
 
-    // Check if we're on the main page or AR page
     if (document.querySelector('.container')) {
         initMainPage();
     } else if (document.querySelector('.ar-body')) {
-        // AR page will be initialized separately
         console.log('AR page loaded');
     }
 });
 
-// Improve responsiveness on mobile (called once)
 function initResponsiveFixes() {
-    // If devicePixelRatio is high, adjust base font-size or ui spacing if needed
-    // (We recommend adding responsive CSS - see notes below)
     window.addEventListener('orientationchange', () => {
-        // small delay to allow layout to settle on orientation change
         setTimeout(() => {
-            // If a preview exists, re-render to adjust sizes if necessary
             updatePreview();
-            // If AR view present, try to reorient camera/look-at attributes
             if (appState.currentChart) {
-                try {
-                    appState.currentChart.object3D?.updateMatrixWorld();
-                } catch (e) { /* ignore */ }
+                try { appState.currentChart.object3D?.updateMatrixWorld(); } catch (e) {}
             }
         }, 200);
     }, false);
 
-    // resize to handle keyboard/popups on mobile
     window.addEventListener('resize', () => {
         updatePreview();
     }, { passive: true });
@@ -157,7 +130,6 @@ function setupInputMethodButtons() {
         });
     });
 
-    // Load sample data by default if sample method is active
     const activeSampleBtn = document.querySelector('.method-btn[data-method="sample"]');
     if (activeSampleBtn && activeSampleBtn.classList.contains('active')) {
         loadSampleData();
@@ -171,7 +143,6 @@ function setupDataInput() {
     const titleInput = document.getElementById('title-input');
     const sampleSelect = document.getElementById('sample-select');
 
-    // Manual input listeners
     labelsInput?.addEventListener('input', () => {
         appState.data.labels = labelsInput.value.split(',').map(l => l.trim()).filter(l => l);
         updatePreview();
@@ -187,7 +158,6 @@ function setupDataInput() {
         updatePreview();
     }, { passive: true });
 
-    // Sample data selector
     sampleSelect?.addEventListener('change', () => {
         loadSampleData();
         updatePreview();
@@ -203,7 +173,6 @@ function loadSampleData() {
 
     const selectedSample = sampleSelect.value;
     console.log('Loading sample data:', selectedSample);
-
     const data = SAMPLE_DATA[selectedSample];
 
     if (data) {
@@ -211,7 +180,6 @@ function loadSampleData() {
         appState.data.values = [...data.values];
         appState.data.title = data.title;
         appState.data.colors = generateColors(data.values.length);
-
         console.log('Sample data loaded:', appState.data);
     } else {
         console.error('Sample data not found for:', selectedSample);
@@ -220,15 +188,12 @@ function loadSampleData() {
 
 function generateColors(count) {
     const colors = [];
-    for (let i = 0; i < count; i++) {
-        colors.push(COLORS[i % COLORS.length]);
-    }
+    for (let i = 0; i < count; i++) colors.push(COLORS[i % COLORS.length]);
     return colors;
 }
 
 function updatePreview() {
     const previewContent = document.getElementById('preview-content');
-
     if (!previewContent) return;
 
     if (appState.data.labels.length === 0 || appState.data.values.length === 0) {
@@ -236,12 +201,10 @@ function updatePreview() {
         return;
     }
 
-    // Ensure colors are generated
     if (appState.data.colors.length !== appState.data.values.length) {
         appState.data.colors = generateColors(appState.data.values.length);
     }
 
-    // Build responsive table view (keeps it simple for mobile)
     let html = '<div class="preview-table">';
     html += '<div class="preview-row header"><div>Label</div><div>Value</div><div>Color</div></div>';
 
@@ -266,7 +229,6 @@ function setupLaunchButton() {
         console.log('Launch AR button clicked');
         console.log('Current state:', appState);
 
-        // Validate data
         if (appState.data.labels.length === 0 || appState.data.values.length === 0) {
             alert('⚠️ Silakan input data terlebih dahulu!');
             return;
@@ -277,12 +239,10 @@ function setupLaunchButton() {
             return;
         }
 
-        // Ensure colors are generated
         if (appState.data.colors.length === 0) {
             appState.data.colors = generateColors(appState.data.values.length);
         }
 
-        // Save to localStorage
         const dataToSave = {
             type: appState.chartType,
             data: appState.data
@@ -297,7 +257,6 @@ function setupLaunchButton() {
             return;
         }
 
-        // Navigate to AR view
         console.log('Navigating to ar.html');
         window.location.href = 'ar.html';
     });
@@ -307,16 +266,13 @@ function setupLaunchButton() {
 function initARView() {
     console.log('=== INIT AR VIEW START ===');
 
-    // Load saved data
     const savedData = localStorage.getItem('arChartData');
     console.log('Raw saved data:', savedData);
 
     if (!savedData) {
         console.error('No data found in localStorage');
         alert('⚠️ No data found. Redirecting to input page...');
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 1000);
+        setTimeout(() => { window.location.href = 'index.html'; }, 1000);
         return;
     }
 
@@ -329,10 +285,7 @@ function initARView() {
 
         console.log('Chart type:', appState.chartType);
         console.log('Chart data:', appState.data);
-        console.log('Labels:', appState.data.labels);
-        console.log('Values:', appState.data.values);
 
-        // Ensure colors exist
         if (!appState.data.colors || appState.data.colors.length === 0) {
             appState.data.colors = generateColors(appState.data.values.length);
             console.log('Generated colors:', appState.data.colors);
@@ -344,13 +297,41 @@ function initARView() {
         setupWebXR();
         console.log('✅ WebXR setup complete');
 
+        // === AUTO-PLACE CHART (no clicks required) ===
+        // Delay slightly to let the scene render and A-Frame finish setup
+        setTimeout(() => {
+            try {
+                // Hide placement UI so it doesn't confuse user
+                const placementMarker = document.getElementById('placement-marker');
+                const placeBtn = document.getElementById('place-chart-btn');
+                if (placementMarker) {
+                    placementMarker.setAttribute('visible', false);
+                    console.log('Placement marker hidden (auto-place).');
+                }
+                if (placeBtn) {
+                    placeBtn.style.display = 'none';
+                    console.log('Place button hidden (auto-place).');
+                }
+
+                // If available, place chart
+                if (typeof placeChartOnGround === 'function') {
+                    console.log('Auto-placing chart...');
+                    // Option: place slightly in front of camera if desired
+                    // We'll attempt to place at default groundPosition used by placeChartOnGround()
+                    placeChartOnGround();
+                } else {
+                    console.warn('placeChartOnGround() not available for auto-place.');
+                }
+            } catch (e) {
+                console.warn('Auto-place failed:', e);
+            }
+        }, 350);
+
         console.log('=== INIT AR VIEW COMPLETE ===');
     } catch (error) {
         console.error('Error in initARView:', error);
         alert('⚠️ Error loading data: ' + error.message);
-        setTimeout(() => {
-            window.location.href = 'index.html';
-        }, 1000);
+        setTimeout(() => { window.location.href = 'index.html'; }, 1000);
     }
 }
 
@@ -364,37 +345,14 @@ function setupARControls() {
     const resetBtn = document.getElementById('reset-btn');
     const deleteBtn = document.getElementById('delete-btn');
 
-    addInteractionListener(backBtn, () => {
-        window.location.href = 'index.html';
-    });
-
-    addInteractionListener(placeBtn, () => {
-        placeChartOnGround();
-    });
-
-    addInteractionListener(rotateLeftBtn, () => {
-        rotateChart(-15);
-    });
-
-    addInteractionListener(rotateRightBtn, () => {
-        rotateChart(15);
-    });
-
-    addInteractionListener(scaleUpBtn, () => {
-        scaleChart(1.2);
-    });
-
-    addInteractionListener(scaleDownBtn, () => {
-        scaleChart(0.8);
-    });
-
-    addInteractionListener(resetBtn, () => {
-        resetChart();
-    });
-
-    addInteractionListener(deleteBtn, () => {
-        deleteChart();
-    });
+    addInteractionListener(backBtn, () => { window.location.href = 'index.html'; });
+    addInteractionListener(placeBtn, () => { placeChartOnGround(); });
+    addInteractionListener(rotateLeftBtn, () => { rotateChart(-15); });
+    addInteractionListener(rotateRightBtn, () => { rotateChart(15); });
+    addInteractionListener(scaleUpBtn, () => { scaleChart(1.2); });
+    addInteractionListener(scaleDownBtn, () => { scaleChart(0.8); });
+    addInteractionListener(resetBtn, () => { resetChart(); });
+    addInteractionListener(deleteBtn, () => { deleteChart(); });
 
     console.log('✅ AR controls setup complete');
 }
@@ -409,18 +367,11 @@ function setupWebXR() {
 
     if (!scene) {
         console.error('A-Frame scene not found!');
-        // Friendly fallback for devices without A-Frame/WebXR
-        const noSceneMsg = document.getElementById('no-scene-msg');
-        if (noSceneMsg) {
-            noSceneMsg.style.display = 'block';
-            noSceneMsg.textContent = 'AR tidak tersedia pada perangkat ini. Silakan gunakan browser yang mendukung WebXR (Chrome/Android) atau buka di perangkat lain.';
-        }
         return;
     }
 
     console.log('Scene found');
 
-    // Show placement marker on ground
     if (placementMarker) {
         placementMarker.setAttribute('visible', true);
         console.log('✅ Placement marker visible on ground');
@@ -436,16 +387,12 @@ function setupWebXR() {
         console.log('✅ Status text updated');
     }
 
-    // Small mobile-friendly tweak: ensure scene is using mobile-friendly renderer settings
     try {
         if (scene.hasAttribute && !scene.getAttribute('embedded')) {
             scene.setAttribute('embedded', '');
         }
-        // if available, set renderer hints (works on many A-Frame versions)
         scene.setAttribute('vr-mode-ui', 'enabled: true');
-    } catch (e) {
-        // ignore engine errors
-    }
+    } catch (e) {}
 
     console.log('=== SETUP WEBXR COMPLETE ===');
 }
@@ -467,7 +414,6 @@ function placeChartOnGround() {
         return;
     }
 
-    // Hide placement marker
     if (placementMarker) {
         placementMarker.setAttribute('visible', false);
         console.log('✅ Placement marker hidden');
@@ -477,7 +423,6 @@ function placeChartOnGround() {
     const groundPosition = { x: 0, y: 0, z: -2 };
     console.log('Chart will be placed at ground position:', groundPosition);
 
-    // Create chart based on type
     let chart;
     try {
         switch(appState.chartType) {
@@ -500,26 +445,15 @@ function placeChartOnGround() {
 
         console.log('Chart created:', chart);
 
-        // Add chart to container
-        chartContainer.innerHTML = ''; // Clear any existing chart
+        chartContainer.innerHTML = '';
         chartContainer.appendChild(chart);
         appState.currentChart = chart;
         console.log('✅ Chart added to scene');
 
-        // Update UI
-        if (statusText) {
-            statusText.textContent = `${appState.data.title || 'Chart'} placed on ground!`;
-        }
+        if (statusText) statusText.textContent = `${appState.data.title || 'Chart'} placed on ground!`;
 
-        if (sideControls) {
-            sideControls.style.display = 'flex';
-            console.log('✅ Side controls shown');
-        }
-
-        if (placeBtn) {
-            placeBtn.style.display = 'none';
-            console.log('✅ Place button hidden');
-        }
+        if (sideControls) sideControls.style.display = 'flex';
+        if (placeBtn) placeBtn.style.display = 'none';
 
         console.log('=== PLACE CHART COMPLETE ===');
 
@@ -540,26 +474,23 @@ function createBarChart(position) {
 
     console.log('Creating bar chart with:', labels.length, 'bars');
 
-    // Normalize values
     const maxValue = Math.max(...values);
     const spacing = 0.35;
     const barWidth = 0.25;
-    const maxHeight = 2.0; // Maximum bar height
+    const maxHeight = 2.0;
 
     labels.forEach((label, index) => {
         const normalizedHeight = (values[index] / maxValue) * maxHeight;
         const xPos = (index - (labels.length - 1) / 2) * spacing;
 
-        // Create bar - positioned so bottom is at Y=0 (ground)
         const bar = document.createElement('a-box');
         bar.setAttribute('width', barWidth);
         bar.setAttribute('height', normalizedHeight);
         bar.setAttribute('depth', barWidth);
         bar.setAttribute('color', colors[index]);
-        bar.setAttribute('position', `${xPos} ${normalizedHeight / 2} 0`); // Y = height/2 so bottom touches ground
+        bar.setAttribute('position', `${xPos} ${normalizedHeight / 2} 0`);
         bar.setAttribute('shadow', 'cast: true');
 
-        // Add animation - grow from ground up
         bar.setAttribute('animation', {
             property: 'scale',
             from: '1 0.01 1',
@@ -569,7 +500,6 @@ function createBarChart(position) {
             easing: 'easeOutCubic'
         });
 
-        // Add value label on top of bar
         const valueText = document.createElement('a-text');
         valueText.setAttribute('value', values[index].toString());
         valueText.setAttribute('align', 'center');
@@ -578,7 +508,6 @@ function createBarChart(position) {
         valueText.setAttribute('position', `${xPos} ${normalizedHeight + 0.2} 0`);
         valueText.setAttribute('look-at', '[camera]');
 
-        // Add label at ground level
         const labelText = document.createElement('a-text');
         labelText.setAttribute('value', label);
         labelText.setAttribute('align', 'center');
@@ -592,7 +521,6 @@ function createBarChart(position) {
         container.appendChild(labelText);
     });
 
-    // Add chart title above everything
     if (appState.data.title) {
         const title = document.createElement('a-text');
         title.setAttribute('value', appState.data.title);
@@ -604,7 +532,6 @@ function createBarChart(position) {
         container.appendChild(title);
     }
 
-    // Add ground reference plane under chart
     const basePlane = document.createElement('a-plane');
     basePlane.setAttribute('width', labels.length * spacing + 0.5);
     basePlane.setAttribute('height', '0.5');
@@ -631,13 +558,12 @@ function createPieChart(position) {
 
     let currentAngle = 0;
     const radius = 0.8;
-    const pieHeight = 0.3; // Height of pie above ground
+    const pieHeight = 0.3;
 
     values.forEach((value, index) => {
         const percentage = value / total;
         const angle = percentage * 360;
 
-        // Create slice (simplified as wedge)
         const slice = document.createElement('a-box');
         const sliceAngle = (currentAngle + angle / 2) * (Math.PI / 180);
         const x = Math.cos(sliceAngle) * radius * 0.4;
@@ -651,7 +577,6 @@ function createPieChart(position) {
         slice.setAttribute('rotation', `0 ${currentAngle + angle / 2} 0`);
         slice.setAttribute('shadow', 'cast: true');
 
-        // Add label with percentage
         const text = document.createElement('a-text');
         text.setAttribute('value', `${labels[index]}\n${(percentage * 100).toFixed(1)}%`);
         text.setAttribute('align', 'center');
@@ -666,7 +591,6 @@ function createPieChart(position) {
         currentAngle += angle;
     });
 
-    // Add title above pie
     if (appState.data.title) {
         const title = document.createElement('a-text');
         title.setAttribute('value', appState.data.title);
@@ -678,7 +602,6 @@ function createPieChart(position) {
         container.appendChild(title);
     }
 
-    // Add base circle on ground
     const base = document.createElement('a-circle');
     base.setAttribute('radius', radius * 0.9);
     base.setAttribute('color', '#16213e');
@@ -687,7 +610,6 @@ function createPieChart(position) {
     base.setAttribute('position', '0 0.01 0');
     container.appendChild(base);
 
-    // Add rotation animation
     container.setAttribute('animation', {
         property: 'rotation',
         to: '0 360 0',
@@ -701,7 +623,6 @@ function createPieChart(position) {
 }
 
 function createHistogram(position) {
-    // Similar to bar chart but with continuous bins
     return createBarChart(position);
 }
 
@@ -732,7 +653,6 @@ function scaleChart(factor) {
         z: currentScale.z * factor
     };
 
-    // Limit scale between 0.3 and 3
     if (newScale.x < 0.3 || newScale.x > 3) {
         console.log('Scale limit reached');
         return;
@@ -744,10 +664,8 @@ function scaleChart(factor) {
 
 function resetChart() {
     if (!appState.currentChart) return;
-
     appState.currentChart.setAttribute('rotation', '0 0 0');
     appState.currentChart.setAttribute('scale', '1 1 1');
-
     console.log('Chart reset to default position and scale');
 }
 
@@ -760,27 +678,14 @@ function deleteChart() {
     const placeBtn = document.getElementById('place-chart-btn');
     const statusText = document.getElementById('status-text');
 
-    // Remove chart
     if (chartContainer) chartContainer.innerHTML = '';
     appState.currentChart = null;
     console.log('Chart deleted');
 
-    // Show placement marker again
-    if (placementMarker) {
-        placementMarker.setAttribute('visible', true);
-    }
-
-    if (sideControls) {
-        sideControls.style.display = 'none';
-    }
-
-    if (placeBtn) {
-        placeBtn.style.display = 'block';
-    }
-
-    if (statusText) {
-        statusText.textContent = 'Tap "Place Chart" to visualize your data';
-    }
+    if (placementMarker) placementMarker.setAttribute('visible', true);
+    if (sideControls) sideControls.style.display = 'none';
+    if (placeBtn) placeBtn.style.display = 'block';
+    if (statusText) statusText.textContent = 'Tap "Place Chart" to visualize your data';
 
     console.log('Ready to place new chart');
 }

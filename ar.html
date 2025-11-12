@@ -70,7 +70,6 @@
             padding: 0 12px;
         }
 
-        /* Side controls (floating) */
         .side-controls {
             position: absolute;
             right: 12px;
@@ -147,7 +146,6 @@
         <div class="top-controls">
             <button id="back-btn" class="control-btn" aria-label="Kembali">←</button>
             <div id="status-text">Ready to place chart</div>
-            <!-- Small info / capability indicator -->
             <div id="capability-indicator" style="font-size:13px;color:#cfe8ff;opacity:0.9;"></div>
         </div>
 
@@ -278,7 +276,6 @@
 
         if (!savedData) {
             showError('No data found. Silakan kembali ke halaman input.');
-            // give user 2.5s to read then go back
             setTimeout(() => window.location.href = 'index.html', 2500);
         } else {
             try {
@@ -320,8 +317,16 @@
                     // Check WebXR support and show hint
                     checkXRSupport();
 
-                    // Add touch/click-to-place on scene canvas: if placement marker visible, tapping places chart
-                    attachTapToPlace();
+                    // Attach tap-to-place only when AUTO_PLACE is not enabled
+                    // Determine AUTO_PLACE: prefer window.AUTO_PLACE set by app.js; default true for safety
+                    const AUTO_PLACE = (typeof window.AUTO_PLACE !== 'undefined') ? !!window.AUTO_PLACE : true;
+                    console.log('AUTO_PLACE =', AUTO_PLACE);
+
+                    if (!AUTO_PLACE) {
+                        attachTapToPlace();
+                    } else {
+                        console.log('Auto-place active: skipping tap-to-place attachment.');
+                    }
 
                 } catch (e) {
                     console.error('Error during onSceneReady:', e);
@@ -332,26 +337,20 @@
 
         function attachTapToPlace() {
             try {
-                // A-Frame renders into canvas; get renderer DOM element if available
                 const canvas = scene && scene.canvas ? scene.canvas : (scene && scene.renderer ? scene.renderer.domElement : null);
-
-                // Fallback: try to find first canvas in DOM
                 const fallbackCanvas = document.querySelector('canvas');
-
                 const targetCanvas = canvas || fallbackCanvas;
                 if (!targetCanvas) {
                     console.warn('Canvas not found for tap-to-place');
                     return;
                 }
 
-                // Use touchend and click; prevent double-fire (touch->click)
                 let lastTouch = 0;
                 const touchHandler = (ev) => {
                     lastTouch = Date.now();
                     attemptPlace();
                 };
                 const clickHandler = (ev) => {
-                    // ignore click fired right after touch
                     if (Date.now() - lastTouch < 500) return;
                     attemptPlace();
                 };
@@ -359,7 +358,7 @@
                 targetCanvas.addEventListener('touchend', touchHandler, { passive: true });
                 targetCanvas.addEventListener('click', clickHandler, { passive: true });
 
-                // Also enable place button to place chart (already handled in app.js but keep defensive)
+                // Also enable place button to place chart (defensive)
                 placeBtn?.addEventListener('click', (e) => {
                     e.stopPropagation?.();
                     attemptPlace();
