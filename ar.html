@@ -1,96 +1,172 @@
 <!DOCTYPE html>
-<html>
+<html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport mobile-friendly -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
     <title>AR View - Statistics</title>
-    
+
     <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-    
+
     <link rel="stylesheet" href="style.css">
-    
+
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-        
+        /* Basic layout */
+        html, body { height: 100%; margin: 0; padding: 0; }
+        body.ar-body { background: #000; color: #fff; overflow: hidden; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+
+        /* Loading screen */
         #loading-screen {
             position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            inset: 0;
+            background: linear-gradient(135deg, #0f1724 0%, #0b1220 100%);
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 9999;
             color: white;
+            padding: 16px;
+            text-align: center;
         }
-        
-        #loading-screen.hidden {
-            display: none;
-        }
-        
+        #loading-screen.hidden { display: none; }
+
         .spinner {
-            border: 4px solid rgba(255, 255, 255, 0.3);
+            border: 4px solid rgba(255, 255, 255, 0.14);
             border-top: 4px solid white;
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 56px;
+            height: 56px;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
+            margin-bottom: 14px;
         }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Overlay controls */
+        #ar-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none; /* allow scene interactions below; enable on controls */
+            z-index: 999;
         }
-        
-        #error-message {
-            color: #E94B3C;
-            padding: 20px;
-            text-align: center;
-            display: none;
+        .top-controls {
+            margin: env(safe-area-inset-top) 12px 0 12px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            pointer-events: auto;
         }
+        .top-controls #status-text { flex: 1; text-align: center; font-weight: 600; color: #e6eef8; }
+
+        .bottom-controls {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: calc(12px + env(safe-area-inset-bottom));
+            display: flex;
+            justify-content: center;
+            pointer-events: auto;
+            padding: 0 12px;
+        }
+
+        /* Side controls (floating) */
+        .side-controls {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        /* Buttons */
+        .control-btn {
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 16px;
+            min-width: 48px;
+            min-height: 48px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .control-btn.primary {
+            background: linear-gradient(90deg, #4A90E2, #50E3C2);
+            color: #03203a;
+            font-weight: 700;
+            padding: 14px 18px;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(10,40,80,0.45);
+        }
+        .control-btn.danger { background: rgba(233,75,60,0.95); color: white; }
+
+        /* Info panel */
+        #info-panel {
+            position: absolute;
+            left: 12px;
+            bottom: calc(90px + env(safe-area-inset-bottom));
+            background: rgba(0,0,0,0.45);
+            padding: 10px 12px;
+            border-radius: 10px;
+            pointer-events: auto;
+            max-width: 48%;
+            color: #fff;
+        }
+
+        /* Placement marker small tweak */
+        #placement-marker a-text { font-weight: 700; }
+
+        /* Error message */
+        #error-message { color: #ffbaba; padding: 8px 12px; display: none; text-align: center; }
+
+        /* Make sure scene fills viewport */
+        a-scene { width: 100vw; height: 100vh; display: block; }
     </style>
 </head>
 <body class="ar-body">
-    
+
     <!-- Loading Screen -->
-    <div id="loading-screen">
-        <div class="spinner"></div>
+    <div id="loading-screen" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
         <h2 id="loading-text">Loading AR View...</h2>
         <p id="loading-detail">Initializing scene</p>
-        <div id="error-message"></div>
+        <div id="error-message" role="alert"></div>
     </div>
-    
+
     <!-- AR Controls Overlay -->
     <div id="ar-overlay" style="display: none;">
         <div class="top-controls">
-            <button id="back-btn" class="control-btn">← Back</button>
+            <button id="back-btn" class="control-btn" aria-label="Kembali">←</button>
             <div id="status-text">Ready to place chart</div>
+            <!-- Small info / capability indicator -->
+            <div id="capability-indicator" style="font-size:13px;color:#cfe8ff;opacity:0.9;"></div>
         </div>
 
         <div class="bottom-controls">
-            <button id="place-chart-btn" class="control-btn primary">
-                📍 Place Chart on Ground
+            <button id="place-chart-btn" class="control-btn primary" aria-label="Place Chart on Ground">
+                📍 Place Chart
             </button>
         </div>
 
         <div class="side-controls" style="display: none;">
             <button id="rotate-left-btn" class="control-btn" title="Rotate Left">↻</button>
             <button id="rotate-right-btn" class="control-btn" title="Rotate Right">↺</button>
-            <button id="scale-up-btn" class="control-btn" title="Scale Up">+</button>
-            <button id="scale-down-btn" class="control-btn" title="Scale Down">-</button>
+            <button id="scale-up-btn" class="control-btn" title="Scale Up">＋</button>
+            <button id="scale-down-btn" class="control-btn" title="Scale Down">－</button>
             <button id="reset-btn" class="control-btn" title="Reset View">⟲</button>
             <button id="delete-btn" class="control-btn danger" title="Delete Chart">🗑️</button>
         </div>
 
-        <!-- Chart Info Panel -->
+        <!-- Chart Info Panel (optional) -->
         <div id="info-panel" style="display: none;">
             <h3 id="info-title"></h3>
             <p id="info-value"></p>
@@ -106,15 +182,14 @@
         <!-- Sky -->
         <a-sky color="#87CEEB" opacity="0.3"></a-sky>
         
-        <!-- Camera with better position -->
-        <a-entity id="camera" camera look-controls wasd-controls="enabled: false" position="0 1.6 3"></a-entity>
+        <!-- Camera (reduced controls for mobile) -->
+        <a-entity id="camera" camera look-controls="touchEnabled: true; mouseEnabled: false" wasd-controls="enabled: false" position="0 1.6 3"></a-entity>
 
-        <!-- Enhanced Lighting -->
+        <!-- Lighting -->
         <a-light type="ambient" intensity="0.7"></a-light>
         <a-light type="directional" intensity="0.9" position="3 5 2" cast-shadow="true"></a-light>
-        <a-light type="point" intensity="0.5" position="-2 3 -2" color="#FFF"></a-light>
 
-        <!-- Ground Plane (reference surface) -->
+        <!-- Ground reference (non-physical fallback) -->
         <a-plane 
             id="ground-plane"
             position="0 0 0" 
@@ -122,146 +197,203 @@
             width="10" 
             height="10" 
             color="#2a2a4e"
-            opacity="0.5"
+            opacity="0.45"
             material="side: double"
             shadow="receive: true">
         </a-plane>
-        
-        <!-- Grid Helper for reference -->
-        <a-entity id="grid-helper" position="0 0.01 0">
-            <!-- Grid lines will be added by JavaScript if needed -->
-        </a-entity>
 
-        <!-- Chart Container - placed at ground level -->
+        <!-- Grid Helper -->
+        <a-entity id="grid-helper" position="0 0.01 0"></a-entity>
+
+        <!-- Chart Container -->
         <a-entity id="chart-container" position="0 0 -2"></a-entity>
 
-        <!-- Placement Marker on Ground -->
+        <!-- Placement Marker -->
         <a-entity id="placement-marker" visible="true" position="0 0.02 -2">
-            <!-- Outer ring -->
-            <a-ring 
-                color="#4A90E2" 
-                radius-inner="0.4" 
-                radius-outer="0.45" 
-                opacity="0.8"
-                rotation="-90 0 0"
-                animation="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000; easing: easeInOutSine">
+            <a-ring color="#4A90E2" radius-inner="0.4" radius-outer="0.45" opacity="0.8" rotation="-90 0 0"
+                animation="property: scale; from: 1 1 1; to: 1.08 1.08 1.08; dir: alternate; loop: true; dur: 900; easing: easeInOutSine">
             </a-ring>
-            
-            <!-- Inner circle -->
-            <a-circle
-                color="#4A90E2"
-                radius="0.35"
-                opacity="0.3"
-                rotation="-90 0 0">
-            </a-circle>
-            
-            <!-- Center dot -->
-            <a-cylinder 
-                color="#FFFFFF" 
-                height="0.05" 
-                radius="0.05" 
-                position="0 0.03 0">
-            </a-cylinder>
-            
-            <!-- Placement text -->
-            <a-text 
-                value="Place chart here" 
-                align="center" 
-                color="#FFFFFF"
-                width="2"
-                position="0 0.1 0"
-                rotation="-90 0 0">
-            </a-text>
+            <a-circle color="#4A90E2" radius="0.35" opacity="0.28" rotation="-90 0 0"></a-circle>
+            <a-cylinder color="#FFFFFF" height="0.05" radius="0.05" position="0 0.03 0"></a-cylinder>
+            <a-text value="Place chart here" align="center" color="#FFFFFF" width="2" position="0 0.12 0" rotation="-90 0 0"></a-text>
         </a-entity>
     </a-scene>
 
     <script src="app.js"></script>
     <script>
         console.log('=== AR.HTML LOADED ===');
-        
+
         const loadingScreen = document.getElementById('loading-screen');
         const loadingText = document.getElementById('loading-text');
         const loadingDetail = document.getElementById('loading-detail');
         const errorMessage = document.getElementById('error-message');
         const arOverlay = document.getElementById('ar-overlay');
-        
+        const capabilityIndicator = document.getElementById('capability-indicator');
+        const placementMarker = document.getElementById('placement-marker');
+        const placeBtn = document.getElementById('place-chart-btn');
+        const scene = document.querySelector('a-scene');
+
         function updateLoading(text, detail) {
             console.log('Loading:', text, detail || '');
             if (loadingText) loadingText.textContent = text;
-            if (loadingDetail && detail) loadingDetail.textContent = detail;
+            if (loadingDetail) loadingDetail.textContent = detail || '';
         }
-        
-        function showError(error) {
-            console.error('Error:', error);
+
+        function showError(message) {
+            console.error('AR error:', message);
             if (errorMessage) {
                 errorMessage.style.display = 'block';
-                errorMessage.innerHTML = `
-                    <h3>⚠️ Error</h3>
-                    <p>${error}</p>
-                    <button onclick="window.location.href='index.html'" 
-                            style="margin-top:10px;padding:10px 20px;background:#4A90E2;border:none;border-radius:8px;color:white;cursor:pointer;">
-                        ← Back to Input
-                    </button>
-                `;
+                errorMessage.innerHTML = `<strong>⚠️ ${message}</strong>`;
             }
-            if (loadingText) loadingText.textContent = 'Failed to load';
+            if (loadingText) loadingText.textContent = 'Failed to load AR';
             if (loadingDetail) loadingDetail.style.display = 'none';
         }
-        
+
         function hideLoading() {
-            console.log('Hiding loading screen');
-            if (loadingScreen) {
-                loadingScreen.classList.add('hidden');
-            }
-            if (arOverlay) {
-                arOverlay.style.display = 'block';
+            if (loadingScreen) loadingScreen.classList.add('hidden');
+            if (arOverlay) arOverlay.style.display = 'block';
+        }
+
+        // Basic WebXR capability hint (informational)
+        async function checkXRSupport() {
+            try {
+                if (navigator.xr && navigator.xr.isSessionSupported) {
+                    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                    capabilityIndicator.textContent = supported ? 'WebXR: AR ✓' : 'WebXR: AR ✕';
+                    capabilityIndicator.title = supported ? 'Browser supports immersive AR' : 'Immersive AR not supported; use Chrome on Android with WebXR enabled';
+                } else {
+                    capabilityIndicator.textContent = 'WebXR: unknown';
+                    capabilityIndicator.title = 'Browser did not expose navigator.xr';
+                }
+            } catch (e) {
+                capabilityIndicator.textContent = 'WebXR: error';
+                capabilityIndicator.title = e.message || 'Error detecting WebXR';
             }
         }
-        
-        // Check data
+
+        // Start checks and load data
         updateLoading('Checking data...', 'Reading from localStorage');
         const savedData = localStorage.getItem('arChartData');
         console.log('Saved data:', savedData);
-        
+
         if (!savedData) {
-            showError('No data found. Please input data first.');
-            setTimeout(() => window.location.href = 'index.html', 3000);
+            showError('No data found. Silakan kembali ke halaman input.');
+            // give user 2.5s to read then go back
+            setTimeout(() => window.location.href = 'index.html', 2500);
         } else {
             try {
                 const chartData = JSON.parse(savedData);
-                console.log('Chart data loaded:', chartData);
-                
-                if (!chartData.data || !chartData.data.labels || !chartData.data.values) {
-                    throw new Error('Invalid chart data structure');
+                if (!chartData?.data?.labels || !chartData?.data?.values) {
+                    throw new Error('Data chart tidak lengkap');
                 }
-                
-                updateLoading('Loading 3D Scene...', 'Please wait');
-                
-                const scene = document.querySelector('a-scene');
-                
+
+                updateLoading('Loading 3D scene...', 'Mempersiapkan tampilan AR');
+
+                // When A-Frame scene is ready
                 if (scene.hasLoaded) {
-                    console.log('Scene already loaded');
-                    initARView();
-                    hideLoading();
+                    onSceneReady();
                 } else {
-                    scene.addEventListener('loaded', () => {
-                        console.log('Scene loaded');
-                        setTimeout(() => {
-                            initARView();
-                            hideLoading();
-                        }, 300);
-                    });
+                    scene.addEventListener('loaded', onSceneReady);
                 }
-                
-            } catch (error) {
-                console.error('Parse error:', error);
-                showError('Error loading data: ' + error.message);
+
+            } catch (err) {
+                console.error('Parse error:', err);
+                showError('Error loading data: ' + err.message);
             }
         }
-        
+
+        function onSceneReady() {
+            console.log('Scene ready');
+            // Small delay to allow renderer to settle on some devices
+            setTimeout(() => {
+                try {
+                    // Initialize AR view (function from app.js)
+                    if (typeof initARView === 'function') {
+                        initARView();
+                    } else {
+                        console.warn('initARView() not found (app.js not loaded?)');
+                    }
+
+                    // Hide loading and show overlay
+                    hideLoading();
+
+                    // Check WebXR support and show hint
+                    checkXRSupport();
+
+                    // Add touch/click-to-place on scene canvas: if placement marker visible, tapping places chart
+                    attachTapToPlace();
+
+                } catch (e) {
+                    console.error('Error during onSceneReady:', e);
+                    showError('Internal error: ' + (e.message || e));
+                }
+            }, 250);
+        }
+
+        function attachTapToPlace() {
+            try {
+                // A-Frame renders into canvas; get renderer DOM element if available
+                const canvas = scene && scene.canvas ? scene.canvas : (scene && scene.renderer ? scene.renderer.domElement : null);
+
+                // Fallback: try to find first canvas in DOM
+                const fallbackCanvas = document.querySelector('canvas');
+
+                const targetCanvas = canvas || fallbackCanvas;
+                if (!targetCanvas) {
+                    console.warn('Canvas not found for tap-to-place');
+                    return;
+                }
+
+                // Use touchend and click; prevent double-fire (touch->click)
+                let lastTouch = 0;
+                const touchHandler = (ev) => {
+                    lastTouch = Date.now();
+                    attemptPlace();
+                };
+                const clickHandler = (ev) => {
+                    // ignore click fired right after touch
+                    if (Date.now() - lastTouch < 500) return;
+                    attemptPlace();
+                };
+
+                targetCanvas.addEventListener('touchend', touchHandler, { passive: true });
+                targetCanvas.addEventListener('click', clickHandler, { passive: true });
+
+                // Also enable place button to place chart (already handled in app.js but keep defensive)
+                placeBtn?.addEventListener('click', (e) => {
+                    e.stopPropagation?.();
+                    attemptPlace();
+                });
+
+                console.log('Tap-to-place attached to canvas');
+            } catch (e) {
+                console.warn('attachTapToPlace failed:', e);
+            }
+        }
+
+        // call placeChartOnGround only when placement marker is visible (defensive)
+        function attemptPlace() {
+            try {
+                const marker = document.getElementById('placement-marker');
+                if (marker && marker.getAttribute('visible') === false) {
+                    console.log('Marker hidden — ignoring tap-to-place');
+                    return;
+                }
+                if (typeof placeChartOnGround === 'function') {
+                    placeChartOnGround();
+                } else {
+                    console.warn('placeChartOnGround() not found');
+                }
+            } catch (e) {
+                console.error('attemptPlace error:', e);
+            }
+        }
+
+        // Back button (defensive in case app.js didn't attach)
         document.getElementById('back-btn')?.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
+
     </script>
 </body>
 </html>

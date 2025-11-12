@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR View - Statistics</title>
+    
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #error-message {
+            color: #E94B3C;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body class="ar-body">
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h2 id="loading-text">Loading AR View...</h2>
+        <p id="loading-detail">Initializing scene</p>
+        <div id="error-message"></div>
+    </div>
+    
+    <!-- AR Controls Overlay -->
+    <div id="ar-overlay" style="display: none;">
+        <div class="top-controls">
+            <button id="back-btn" class="control-btn">← Back</button>
+            <div id="status-text">Ready to place chart</div>
+        </div>
+
+        <div class="bottom-controls">
+            <button id="place-chart-btn" class="control-btn primary">
+                📍 Place Chart on Ground
+            </button>
+        </div>
+
+        <div class="side-controls" style="display: none;">
+            <button id="rotate-left-btn" class="control-btn" title="Rotate Left">↻</button>
+            <button id="rotate-right-btn" class="control-btn" title="Rotate Right">↺</button>
+            <button id="scale-up-btn" class="control-btn" title="Scale Up">+</button>
+            <button id="scale-down-btn" class="control-btn" title="Scale Down">-</button>
+            <button id="reset-btn" class="control-btn" title="Reset View">⟲</button>
+            <button id="delete-btn" class="control-btn danger" title="Delete Chart">🗑️</button>
+        </div>
+
+        <!-- Chart Info Panel -->
+        <div id="info-panel" style="display: none;">
+            <h3 id="info-title"></h3>
+            <p id="info-value"></p>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        embedded
+        vr-mode-ui="enabled: false"
+        renderer="colorManagement: true; physicallyCorrectLights: true; antialias: true;">
+        
+        <!-- Sky -->
+        <a-sky color="#87CEEB" opacity="0.3"></a-sky>
+        
+        <!-- Camera with better position -->
+        <a-entity id="camera" camera look-controls wasd-controls="enabled: false" position="0 1.6 3"></a-entity>
+
+        <!-- Enhanced Lighting -->
+        <a-light type="ambient" intensity="0.7"></a-light>
+        <a-light type="directional" intensity="0.9" position="3 5 2" cast-shadow="true"></a-light>
+        <a-light type="point" intensity="0.5" position="-2 3 -2" color="#FFF"></a-light>
+
+        <!-- Ground Plane (reference surface) -->
+        <a-plane 
+            id="ground-plane"
+            position="0 0 0" 
+            rotation="-90 0 0" 
+            width="10" 
+            height="10" 
+            color="#2a2a4e"
+            opacity="0.5"
+            material="side: double"
+            shadow="receive: true">
+        </a-plane>
+        
+        <!-- Grid Helper for reference -->
+        <a-entity id="grid-helper" position="0 0.01 0">
+            <!-- Grid lines will be added by JavaScript if needed -->
+        </a-entity>
+
+        <!-- Chart Container - placed at ground level -->
+        <a-entity id="chart-container" position="0 0 -2"></a-entity>
+
+        <!-- Placement Marker on Ground -->
+        <a-entity id="placement-marker" visible="true" position="0 0.02 -2">
+            <!-- Outer ring -->
+            <a-ring 
+                color="#4A90E2" 
+                radius-inner="0.4" 
+                radius-outer="0.45" 
+                opacity="0.8"
+                rotation="-90 0 0"
+                animation="property: scale; from: 1 1 1; to: 1.1 1.1 1.1; dir: alternate; loop: true; dur: 1000; easing: easeInOutSine">
+            </a-ring>
+            
+            <!-- Inner circle -->
+            <a-circle
+                color="#4A90E2"
+                radius="0.35"
+                opacity="0.3"
+                rotation="-90 0 0">
+            </a-circle>
+            
+            <!-- Center dot -->
+            <a-cylinder 
+                color="#FFFFFF" 
+                height="0.05" 
+                radius="0.05" 
+                position="0 0.03 0">
+            </a-cylinder>
+            
+            <!-- Placement text -->
+            <a-text 
+                value="Place chart here" 
+                align="center" 
+                color="#FFFFFF"
+                width="2"
+                position="0 0.1 0"
+                rotation="-90 0 0">
+            </a-text>
+        </a-entity>
+    </a-scene>
+
+    <script src="app.js"></script>
+    <script>
+        console.log('=== AR.HTML LOADED ===');
+        
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingText = document.getElementById('loading-text');
+        const loadingDetail = document.getElementById('loading-detail');
+        const errorMessage = document.getElementById('error-message');
+        const arOverlay = document.getElementById('ar-overlay');
+        
+        function updateLoading(text, detail) {
+            console.log('Loading:', text, detail || '');
+            if (loadingText) loadingText.textContent = text;
+            if (loadingDetail && detail) loadingDetail.textContent = detail;
+        }
+        
+        function showError(error) {
+            console.error('Error:', error);
+            if (errorMessage) {
+                errorMessage.style.display = 'block';
+                errorMessage.innerHTML = `
+                    <h3>⚠️ Error</h3>
+                    <p>${error}</p>
+                    <button onclick="window.location.href='index.html'" 
+                            style="margin-top:10px;padding:10px 20px;background:#4A90E2;border:none;border-radius:8px;color:white;cursor:pointer;">
+                        ← Back to Input
+                    </button>
+                `;
+            }
+            if (loadingText) loadingText.textContent = 'Failed to load';
+            if (loadingDetail) loadingDetail.style.display = 'none';
+        }
+        
+        function hideLoading() {
+            console.log('Hiding loading screen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('hidden');
+            }
+            if (arOverlay) {
+                arOverlay.style.display = 'block';
+            }
+        }
+        
+        // Check data
+        updateLoading('Checking data...', 'Reading from localStorage');
+        const savedData = localStorage.getItem('arChartData');
+        console.log('Saved data:', savedData);
+        
+        if (!savedData) {
+            showError('No data found. Please input data first.');
+            setTimeout(() => window.location.href = 'index.html', 3000);
+        } else {
+            try {
+                const chartData = JSON.parse(savedData);
+                console.log('Chart data loaded:', chartData);
+                
+                if (!chartData.data || !chartData.data.labels || !chartData.data.values) {
+                    throw new Error('Invalid chart data structure');
+                }
+                
+                updateLoading('Loading 3D Scene...', 'Please wait');
+                
+                const scene = document.querySelector('a-scene');
+                
+                if (scene.hasLoaded) {
+                    console.log('Scene already loaded');
+                    initARView();
+                    hideLoading();
+                } else {
+                    scene.addEventListener('loaded', () => {
+                        console.log('Scene loaded');
+                        setTimeout(() => {
+                            initARView();
+                            hideLoading();
+                        }, 300);
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Parse error:', error);
+                showError('Error loading data: ' + error.message);
+            }
+        }
+        
+        document.getElementById('back-btn')?.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+    </script>
+</body>
+</html>
