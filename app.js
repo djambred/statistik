@@ -236,7 +236,7 @@ function setupLaunchButton() {
 
 // ==================== AR View Logic ====================
 function initARView() {
-    console.log('Initializing AR View...');
+    console.log('=== INIT AR VIEW START ===');
     
     // Load saved data
     const savedData = localStorage.getItem('arChartData');
@@ -260,14 +260,25 @@ function initARView() {
         
         console.log('Chart type:', appState.chartType);
         console.log('Chart data:', appState.data);
+        console.log('Labels:', appState.data.labels);
+        console.log('Values:', appState.data.values);
+        
+        // Ensure colors exist
+        if (!appState.data.colors || appState.data.colors.length === 0) {
+            appState.data.colors = generateColors(appState.data.values.length);
+            console.log('Generated colors:', appState.data.colors);
+        }
         
         setupARControls();
-        setupWebXR();
+        console.log('✅ AR controls setup complete');
         
-        console.log('AR View initialized successfully');
+        setupWebXR();
+        console.log('✅ WebXR setup complete');
+        
+        console.log('=== INIT AR VIEW COMPLETE ===');
     } catch (error) {
-        console.error('Error parsing chart data:', error);
-        alert('⚠️ Error loading data. Redirecting...');
+        console.error('Error in initARView:', error);
+        alert('⚠️ Error loading data: ' + error.message);
         setTimeout(() => {
             window.location.href = 'index.html';
         }, 1000);
@@ -313,100 +324,132 @@ function setupARControls() {
 }
 
 function setupWebXR() {
+    console.log('=== SETUP WEBXR START ===');
+    
     const scene = document.querySelector('a-scene');
     const reticle = document.getElementById('reticle');
     const placeBtn = document.getElementById('place-chart-btn');
     const statusText = document.getElementById('status-text');
     
     if (!scene) {
-        console.error('A-Frame scene not found');
+        console.error('A-Frame scene not found!');
         return;
     }
     
-    // Wait for scene to load
-    scene.addEventListener('loaded', () => {
-        console.log('A-Frame scene loaded');
-        
-        // Simple surface detection simulation
-        // In real WebXR, this would use hit-test API
-        setTimeout(() => {
-            if (reticle) {
-                reticle.setAttribute('visible', true);
-                reticle.setAttribute('position', '0 0 -2');
-            }
-            
-            if (placeBtn) {
-                placeBtn.disabled = false;
-                placeBtn.classList.remove('loading');
-            }
-            
-            if (statusText) {
-                statusText.textContent = 'Tap "Place Chart" to create visualization';
-            }
-        }, 2000);
-    });
+    console.log('Scene found:', scene);
+    console.log('Reticle found:', reticle);
+    console.log('Place button found:', placeBtn);
+    
+    // Show reticle immediately for testing
+    console.log('Showing reticle for surface detection simulation');
+    
+    if (reticle) {
+        reticle.setAttribute('visible', true);
+        reticle.setAttribute('position', '0 0 -2');
+        console.log('✅ Reticle visible at position 0 0 -2');
+    }
+    
+    if (placeBtn) {
+        placeBtn.disabled = false;
+        placeBtn.classList.remove('loading');
+        console.log('✅ Place button enabled');
+    }
+    
+    if (statusText) {
+        statusText.textContent = 'Ready! Tap "Place Chart" to create visualization';
+        console.log('✅ Status text updated');
+    }
     
     // Camera movement simulation for reticle
     let angle = 0;
-    setInterval(() => {
+    const reticleAnimation = setInterval(() => {
         if (reticle && reticle.getAttribute('visible') && !appState.currentChart) {
             angle += 0.02;
             const x = Math.sin(angle) * 0.3;
             const z = -2 + Math.cos(angle) * 0.3;
             reticle.setAttribute('position', `${x} 0 ${z}`);
+        } else if (appState.currentChart) {
+            clearInterval(reticleAnimation);
         }
     }, 50);
+    
+    console.log('=== SETUP WEBXR COMPLETE ===');
 }
 
 function placeChart() {
+    console.log('=== PLACE CHART START ===');
+    
     const reticle = document.getElementById('reticle');
     const chartContainer = document.getElementById('chart-container');
     const statusText = document.getElementById('status-text');
     const sideControls = document.querySelector('.side-controls');
     const placeBtn = document.getElementById('place-chart-btn');
     
-    if (!reticle || !chartContainer) return;
+    console.log('Chart type to create:', appState.chartType);
+    console.log('Chart data:', appState.data);
+    
+    if (!reticle || !chartContainer) {
+        console.error('Required elements not found!');
+        return;
+    }
     
     // Hide reticle
     reticle.setAttribute('visible', false);
+    console.log('✅ Reticle hidden');
     
     // Get reticle position
     const position = reticle.getAttribute('position');
+    console.log('Chart position:', position);
     
     // Create chart based on type
     let chart;
-    switch(appState.chartType) {
-        case 'bar':
-            chart = createBarChart(position);
-            break;
-        case 'pie':
-            chart = createPieChart(position);
-            break;
-        case 'histogram':
-            chart = createHistogram(position);
-            break;
-        default:
-            chart = createBarChart(position);
+    try {
+        switch(appState.chartType) {
+            case 'bar':
+                console.log('Creating bar chart...');
+                chart = createBarChart(position);
+                break;
+            case 'pie':
+                console.log('Creating pie chart...');
+                chart = createPieChart(position);
+                break;
+            case 'histogram':
+                console.log('Creating histogram...');
+                chart = createHistogram(position);
+                break;
+            default:
+                console.log('Unknown chart type, defaulting to bar chart');
+                chart = createBarChart(position);
+        }
+        
+        console.log('Chart created:', chart);
+        
+        // Add chart to scene
+        chartContainer.appendChild(chart);
+        appState.currentChart = chart;
+        console.log('✅ Chart added to scene');
+        
+        // Update UI
+        if (statusText) {
+            statusText.textContent = `${appState.data.title || 'Chart'} placed successfully!`;
+        }
+        
+        if (sideControls) {
+            sideControls.style.display = 'flex';
+            console.log('✅ Side controls shown');
+        }
+        
+        if (placeBtn) {
+            placeBtn.style.display = 'none';
+            console.log('✅ Place button hidden');
+        }
+        
+        console.log('=== PLACE CHART COMPLETE ===');
+        
+    } catch (error) {
+        console.error('Error creating chart:', error);
+        alert('⚠️ Error creating chart: ' + error.message);
     }
-    
-    // Add chart to scene
-    chartContainer.appendChild(chart);
-    appState.currentChart = chart;
-    
-    // Update UI
-    if (statusText) {
-        statusText.textContent = `${appState.data.title || 'Chart'} placed successfully!`;
-    }
-    
-    if (sideControls) {
-        sideControls.style.display = 'flex';
-    }
-    
-    if (placeBtn) {
-        placeBtn.style.display = 'none';
-    }
-    
-    console.log('Chart placed:', appState.chartType);
 }
 
 // ==================== Chart Creation Functions ====================

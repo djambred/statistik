@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AR Statistics Visualization</title>
     <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
     <div class="container">
@@ -19,15 +21,15 @@
                 <h2>Pilih Jenis Chart</h2>
                 <div class="chart-types">
                     <button class="chart-type-btn active" data-type="bar">
-                        <span class="icon">📊</span>
+                        <i data-lucide="bar-chart-3" class="icon"></i>
                         <span>Bar Chart</span>
                     </button>
                     <button class="chart-type-btn" data-type="pie">
-                        <span class="icon">🥧</span>
+                        <i data-lucide="pie-chart" class="icon"></i>
                         <span>Pie Chart</span>
                     </button>
                     <button class="chart-type-btn" data-type="histogram">
-                        <span class="icon">📈</span>
+                        <i data-lucide="bar-chart-4" class="icon"></i>
                         <span>Histogram</span>
                     </button>
                 </div>
@@ -85,6 +87,13 @@
                 </button>
             </div>
 
+            <!-- Debug Button (untuk testing) -->
+            <div class="action-section" style="margin-top: 10px;">
+                <button id="debug-btn" class="control-btn" style="background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); padding: 10px 20px; border-radius: 8px; color: white; cursor: pointer;">
+                    🔍 Debug - Check Data
+                </button>
+            </div>
+
             <!-- Info Section -->
             <section class="info-section">
                 <h3>ℹ️ Cara Menggunakan:</h3>
@@ -105,5 +114,55 @@
     </div>
 
     <script src="app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+            console.log('✅ Lucide icons initialized');
+        }
+        
+        // Debug: Check if elements loaded
+        console.log('=== PAGE LOADED ===');
+        console.log('Launch button:', document.getElementById('launch-ar-btn'));
+        console.log('Sample select:', document.getElementById('sample-select'));
+        console.log('Debug button:', document.getElementById('debug-btn'));
+        
+        // Debug button handler
+        document.getElementById('debug-btn')?.addEventListener('click', () => {
+            console.log('=== DEBUG INFO ===');
+            console.log('Chart Type:', appState.chartType);
+            console.log('Input Method:', appState.inputMethod);
+            console.log('Labels:', appState.data.labels);
+            console.log('Values:', appState.data.values);
+            console.log('Colors:', appState.data.colors);
+            console.log('Title:', appState.data.title);
+            
+            // Test localStorage
+            if (appState.data.labels.length > 0 && appState.data.values.length > 0) {
+                const testData = {
+                    type: appState.chartType,
+                    data: appState.data
+                };
+                localStorage.setItem('arChartData', JSON.stringify(testData));
+                const retrieved = localStorage.getItem('arChartData');
+                console.log('LocalStorage test SUCCESS:', retrieved);
+                alert('✅ Data valid! Check console for details.\n\nChart Type: ' + appState.chartType + '\nLabels: ' + appState.data.labels.length + '\nValues: ' + appState.data.values.length);
+            } else {
+                console.error('❌ Data invalid or empty');
+                alert('⚠️ Data belum diinput atau tidak valid!\n\nLabels: ' + appState.data.labels.length + '\nValues: ' + appState.data.values.length);
+            }
+        });
+        
+        // Check localStorage capability
+        try {
+            localStorage.setItem('test', 'ok');
+            const test = localStorage.getItem('test');
+            localStorage.removeItem('test');
+            console.log('✅ localStorage working:', test === 'ok');
+        } catch (e) {
+            console.error('❌ localStorage NOT working:', e);
+            alert('⚠️ Browser tidak mendukung localStorage. Gunakan browser lain atau disable privacy mode.');
+        }
+    </script>
 </body>
 </html>

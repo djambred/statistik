@@ -12,7 +12,7 @@ services:
     
     # Port mapping
     ports:
-      - "8080:80"
+      - "8081:80"
     
     # Restart policy
     restart: unless-stopped

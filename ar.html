@@ -1,120 +1,246 @@
 <!DOCTYPE html>
-<html lang="id">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Statistics Visualization</title>
+    <title>AR View - Statistics</title>
+    
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.js"></script>
+    
     <link rel="stylesheet" href="style.css">
-    <!-- Lucide Icons CDN -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* Inline critical AR styles */
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+        
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            color: white;
+        }
+        
+        #loading-screen.hidden {
+            display: none;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #error-message {
+            color: #E94B3C;
+            padding: 20px;
+            text-align: center;
+            display: none;
+        }
+    </style>
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>📊 AR Statistics Visualization</h1>
-            <p>Visualisasikan data statistik Anda dalam Augmented Reality 3D</p>
-        </header>
-
-        <main>
-            <!-- Chart Type Selection -->
-            <section class="chart-type-section">
-                <h2>Pilih Jenis Chart</h2>
-                <div class="chart-types">
-                    <button class="chart-type-btn active" data-type="bar">
-                        <i data-lucide="bar-chart-3" class="icon"></i>
-                        <span>Bar Chart</span>
-                    </button>
-                    <button class="chart-type-btn" data-type="pie">
-                        <i data-lucide="pie-chart" class="icon"></i>
-                        <span>Pie Chart</span>
-                    </button>
-                    <button class="chart-type-btn" data-type="histogram">
-                        <i data-lucide="bar-chart-4" class="icon"></i>
-                        <span>Histogram</span>
-                    </button>
-                </div>
-            </section>
-
-            <!-- Data Input Section -->
-            <section class="data-input-section">
-                <h2>Input Data</h2>
-                
-                <div class="input-method">
-                    <button class="method-btn active" data-method="manual">Manual Input</button>
-                    <button class="method-btn" data-method="sample">Use Sample Data</button>
-                </div>
-
-                <!-- Manual Input -->
-                <div id="manual-input" class="input-form">
-                    <div class="form-group">
-                        <label>Labels (pisahkan dengan koma):</label>
-                        <input type="text" id="labels-input" placeholder="Q1, Q2, Q3, Q4">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Values (pisahkan dengan koma):</label>
-                        <input type="text" id="values-input" placeholder="45, 67, 82, 91">
-                    </div>
-
-                    <div class="form-group">
-                        <label>Chart Title:</label>
-                        <input type="text" id="title-input" placeholder="Sales Data 2024">
-                    </div>
-                </div>
-
-                <!-- Sample Data (Hidden by default) -->
-                <div id="sample-input" class="input-form" style="display: none;">
-                    <select id="sample-select">
-                        <option value="sales">Sales Data</option>
-                        <option value="survey">Survey Results</option>
-                        <option value="grades">Student Grades</option>
-                    </select>
-                </div>
-
-                <!-- Data Preview -->
-                <div class="data-preview">
-                    <h3>Preview Data:</h3>
-                    <div id="preview-content">
-                        <p class="placeholder">Data akan muncul di sini...</p>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Launch AR Button -->
-            <div class="action-section">
-                <button id="launch-ar-btn" class="launch-btn">
-                    <span>🚀 Launch AR View</span>
-                </button>
-            </div>
-
-            <!-- Info Section -->
-            <section class="info-section">
-                <h3>ℹ️ Cara Menggunakan:</h3>
-                <ol>
-                    <li>Pilih jenis chart yang diinginkan</li>
-                    <li>Input data atau pilih sample data</li>
-                    <li>Klik "Launch AR View"</li>
-                    <li>Izinkan akses kamera</li>
-                    <li>Arahkan kamera ke permukaan datar</li>
-                    <li>Tap untuk menempatkan chart</li>
-                </ol>
-            </section>
-        </main>
-
-        <footer>
-            <p>💡 Butuh browser dengan WebXR support (Chrome di Android / Safari di iOS)</p>
-        </footer>
+<body class="ar-body">
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h2 id="loading-text">Loading AR View...</h2>
+        <p id="loading-detail">Initializing scene</p>
+        <div id="error-message"></div>
     </div>
+    
+    <!-- AR Controls Overlay -->
+    <div id="ar-overlay" style="display: none;">
+        <div class="top-controls">
+            <button id="back-btn" class="control-btn">← Back</button>
+            <div id="status-text">Scanning for surfaces...</div>
+        </div>
+
+        <div class="bottom-controls">
+            <button id="place-chart-btn" class="control-btn primary" disabled>
+                📍 Place Chart
+            </button>
+        </div>
+
+        <div class="side-controls" style="display: none;">
+            <button id="rotate-left-btn" class="control-btn">↻</button>
+            <button id="rotate-right-btn" class="control-btn">↺</button>
+            <button id="scale-up-btn" class="control-btn">+</button>
+            <button id="scale-down-btn" class="control-btn">-</button>
+            <button id="delete-btn" class="control-btn danger">🗑️</button>
+        </div>
+
+        <!-- Chart Info Panel -->
+        <div id="info-panel" style="display: none;">
+            <h3 id="info-title"></h3>
+            <p id="info-value"></p>
+        </div>
+    </div>
+
+    <!-- A-Frame Scene -->
+    <a-scene 
+        embedded
+        vr-mode-ui="enabled: false"
+        renderer="colorManagement: true; physicallyCorrectLights: true;">
+        
+        <!-- Camera -->
+        <a-entity camera look-controls wasd-controls="enabled: false"></a-entity>
+
+        <!-- Lighting -->
+        <a-light type="ambient" intensity="0.6"></a-light>
+        <a-light type="directional" intensity="0.8" position="2 4 2"></a-light>
+
+        <!-- Chart Container -->
+        <a-entity id="chart-container"></a-entity>
+
+        <!-- Reticle for placement -->
+        <a-entity id="reticle" visible="false">
+            <a-ring 
+                color="#FFFFFF" 
+                radius-inner="0.15" 
+                radius-outer="0.2" 
+                opacity="0.8"
+                rotation="-90 0 0">
+            </a-ring>
+            <a-cylinder 
+                color="#FFFFFF" 
+                height="0.02" 
+                radius="0.01" 
+                position="0 0.01 0">
+            </a-cylinder>
+        </a-entity>
+    </a-scene>
 
     <script src="app.js"></script>
     <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
+        console.log('=== AR.HTML LOADED ===');
         
-        // Debug: Check if elements loaded
-        console.log('Page loaded');
-        console.log('Launch button:', document.getElementById('launch-ar-btn'));
-        console.log('Sample select:', document.getElementById('sample-select'));
+        const loadingScreen = document.getElementById('loading-screen');
+        const loadingText = document.getElementById('loading-text');
+        const loadingDetail = document.getElementById('loading-detail');
+        const errorMessage = document.getElementById('error-message');
+        const arOverlay = document.getElementById('ar-overlay');
+        
+        // Update loading status
+        function updateLoading(text, detail) {
+            console.log('Loading:', text, detail || '');
+            if (loadingText) loadingText.textContent = text;
+            if (loadingDetail && detail) loadingDetail.textContent = detail;
+        }
+        
+        // Show error
+        function showError(error) {
+            console.error('Error:', error);
+            if (errorMessage) {
+                errorMessage.style.display = 'block';
+                errorMessage.innerHTML = `
+                    <h3>⚠️ Error</h3>
+                    <p>${error}</p>
+                    <button onclick="window.location.href='index.html'" 
+                            style="margin-top:10px;padding:10px 20px;background:#4A90E2;border:none;border-radius:8px;color:white;cursor:pointer;">
+                        ← Back to Input
+                    </button>
+                `;
+            }
+            if (loadingText) loadingText.textContent = 'Failed to load';
+            if (loadingDetail) loadingDetail.style.display = 'none';
+        }
+        
+        // Hide loading screen
+        function hideLoading() {
+            console.log('Hiding loading screen');
+            if (loadingScreen) {
+                loadingScreen.classList.add('hidden');
+            }
+            if (arOverlay) {
+                arOverlay.style.display = 'block';
+            }
+        }
+        
+        // Check data
+        updateLoading('Checking data...', 'Reading from localStorage');
+        const savedData = localStorage.getItem('arChartData');
+        console.log('Saved data from localStorage:', savedData);
+        
+        if (!savedData) {
+            showError('No data found in localStorage. Please input data first.');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 3000);
+        } else {
+            try {
+                const chartData = JSON.parse(savedData);
+                console.log('Parsed chart data:', chartData);
+                
+                if (!chartData.data || !chartData.data.labels || !chartData.data.values) {
+                    throw new Error('Invalid chart data structure');
+                }
+                
+                updateLoading('Loading A-Frame...', 'Initializing 3D scene');
+                
+                // Wait for A-Frame scene to be ready
+                const scene = document.querySelector('a-scene');
+                
+                if (scene.hasLoaded) {
+                    console.log('Scene already loaded');
+                    updateLoading('Scene ready!', 'Initializing AR controls');
+                    setTimeout(() => {
+                        initARView();
+                        hideLoading();
+                    }, 500);
+                } else {
+                    console.log('Waiting for scene to load...');
+                    scene.addEventListener('loaded', () => {
+                        console.log('Scene loaded event fired');
+                        updateLoading('Scene ready!', 'Initializing AR controls');
+                        setTimeout(() => {
+                            initARView();
+                            hideLoading();
+                        }, 500);
+                    });
+                    
+                    // Timeout fallback
+                    setTimeout(() => {
+                        if (!scene.hasLoaded) {
+                            console.warn('Scene load timeout, forcing initialization');
+                            updateLoading('Scene ready!', 'Initializing AR controls');
+                            initARView();
+                            hideLoading();
+                        }
+                    }, 5000);
+                }
+                
+            } catch (error) {
+                console.error('Error parsing data:', error);
+                showError('Error loading data: ' + error.message);
+            }
+        }
+        
+        // Back button handler (works even if initARView fails)
+        document.getElementById('back-btn')?.addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
     </script>
 </body>
 </html>
