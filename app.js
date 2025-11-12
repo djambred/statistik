@@ -292,6 +292,7 @@ function setupARControls() {
     const rotateRightBtn = document.getElementById('rotate-right-btn');
     const scaleUpBtn = document.getElementById('scale-up-btn');
     const scaleDownBtn = document.getElementById('scale-down-btn');
+    const resetBtn = document.getElementById('reset-btn');
     const deleteBtn = document.getElementById('delete-btn');
     
     backBtn?.addEventListener('click', () => {
@@ -299,7 +300,7 @@ function setupARControls() {
     });
     
     placeBtn?.addEventListener('click', () => {
-        placeChart();
+        placeChartOnGround();
     });
     
     rotateLeftBtn?.addEventListener('click', () => {
@@ -318,16 +319,22 @@ function setupARControls() {
         scaleChart(0.8);
     });
     
+    resetBtn?.addEventListener('click', () => {
+        resetChart();
+    });
+    
     deleteBtn?.addEventListener('click', () => {
         deleteChart();
     });
+    
+    console.log('✅ AR controls setup complete');
 }
 
 function setupWebXR() {
     console.log('=== SETUP WEBXR START ===');
     
     const scene = document.querySelector('a-scene');
-    const reticle = document.getElementById('reticle');
+    const placementMarker = document.getElementById('placement-marker');
     const placeBtn = document.getElementById('place-chart-btn');
     const statusText = document.getElementById('status-text');
     
@@ -336,102 +343,86 @@ function setupWebXR() {
         return;
     }
     
-    console.log('Scene found:', scene);
-    console.log('Reticle found:', reticle);
-    console.log('Place button found:', placeBtn);
+    console.log('Scene found');
     
-    // Show reticle immediately for testing
-    console.log('Showing reticle for surface detection simulation');
-    
-    if (reticle) {
-        reticle.setAttribute('visible', true);
-        reticle.setAttribute('position', '0 0 -2');
-        console.log('✅ Reticle visible at position 0 0 -2');
+    // Show placement marker on ground
+    if (placementMarker) {
+        placementMarker.setAttribute('visible', true);
+        console.log('✅ Placement marker visible on ground');
     }
     
     if (placeBtn) {
         placeBtn.disabled = false;
-        placeBtn.classList.remove('loading');
         console.log('✅ Place button enabled');
     }
     
     if (statusText) {
-        statusText.textContent = 'Ready! Tap "Place Chart" to create visualization';
+        statusText.textContent = 'Tap "Place Chart" to visualize your data';
         console.log('✅ Status text updated');
     }
-    
-    // Camera movement simulation for reticle
-    let angle = 0;
-    const reticleAnimation = setInterval(() => {
-        if (reticle && reticle.getAttribute('visible') && !appState.currentChart) {
-            angle += 0.02;
-            const x = Math.sin(angle) * 0.3;
-            const z = -2 + Math.cos(angle) * 0.3;
-            reticle.setAttribute('position', `${x} 0 ${z}`);
-        } else if (appState.currentChart) {
-            clearInterval(reticleAnimation);
-        }
-    }, 50);
     
     console.log('=== SETUP WEBXR COMPLETE ===');
 }
 
-function placeChart() {
-    console.log('=== PLACE CHART START ===');
+function placeChartOnGround() {
+    console.log('=== PLACE CHART ON GROUND START ===');
     
-    const reticle = document.getElementById('reticle');
+    const placementMarker = document.getElementById('placement-marker');
     const chartContainer = document.getElementById('chart-container');
     const statusText = document.getElementById('status-text');
     const sideControls = document.querySelector('.side-controls');
     const placeBtn = document.getElementById('place-chart-btn');
     
-    console.log('Chart type to create:', appState.chartType);
+    console.log('Chart type:', appState.chartType);
     console.log('Chart data:', appState.data);
     
-    if (!reticle || !chartContainer) {
-        console.error('Required elements not found!');
+    if (!chartContainer) {
+        console.error('Chart container not found!');
         return;
     }
     
-    // Hide reticle
-    reticle.setAttribute('visible', false);
-    console.log('✅ Reticle hidden');
+    // Hide placement marker
+    if (placementMarker) {
+        placementMarker.setAttribute('visible', false);
+        console.log('✅ Placement marker hidden');
+    }
     
-    // Get reticle position
-    const position = reticle.getAttribute('position');
-    console.log('Chart position:', position);
+    // Ground position (Y = 0 is ground level)
+    const groundPosition = { x: 0, y: 0, z: -2 };
+    console.log('Chart will be placed at ground position:', groundPosition);
     
     // Create chart based on type
     let chart;
     try {
         switch(appState.chartType) {
             case 'bar':
-                console.log('Creating bar chart...');
-                chart = createBarChart(position);
+                console.log('Creating bar chart on ground...');
+                chart = createBarChart(groundPosition);
                 break;
             case 'pie':
-                console.log('Creating pie chart...');
-                chart = createPieChart(position);
+                console.log('Creating pie chart on ground...');
+                chart = createPieChart(groundPosition);
                 break;
             case 'histogram':
-                console.log('Creating histogram...');
-                chart = createHistogram(position);
+                console.log('Creating histogram on ground...');
+                chart = createHistogram(groundPosition);
                 break;
             default:
-                console.log('Unknown chart type, defaulting to bar chart');
-                chart = createBarChart(position);
+                console.log('Unknown type, defaulting to bar chart');
+                chart = createBarChart(groundPosition);
         }
         
         console.log('Chart created:', chart);
         
-        // Add chart to scene
+        // Add chart to container
+        chartContainer.innerHTML = ''; // Clear any existing chart
         chartContainer.appendChild(chart);
         appState.currentChart = chart;
         console.log('✅ Chart added to scene');
         
         // Update UI
         if (statusText) {
-            statusText.textContent = `${appState.data.title || 'Chart'} placed successfully!`;
+            statusText.textContent = `${appState.data.title || 'Chart'} placed on ground!`;
         }
         
         if (sideControls) {
@@ -455,101 +446,133 @@ function placeChart() {
 // ==================== Chart Creation Functions ====================
 function createBarChart(position) {
     const container = document.createElement('a-entity');
-    container.setAttribute('position', position);
+    container.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
     
     const labels = appState.data.labels;
     const values = appState.data.values;
     const colors = appState.data.colors;
     
+    console.log('Creating bar chart with:', labels.length, 'bars');
+    
     // Normalize values
     const maxValue = Math.max(...values);
-    const spacing = 0.3;
-    const barWidth = 0.2;
+    const spacing = 0.35;
+    const barWidth = 0.25;
+    const maxHeight = 2.0; // Maximum bar height
     
     labels.forEach((label, index) => {
-        const normalizedHeight = (values[index] / maxValue) * 2;
+        const normalizedHeight = (values[index] / maxValue) * maxHeight;
         const xPos = (index - labels.length / 2) * spacing;
         
-        // Create bar
+        // Create bar - positioned so bottom is at Y=0 (ground)
         const bar = document.createElement('a-box');
         bar.setAttribute('width', barWidth);
         bar.setAttribute('height', normalizedHeight);
         bar.setAttribute('depth', barWidth);
         bar.setAttribute('color', colors[index]);
-        bar.setAttribute('position', `${xPos} ${normalizedHeight / 2} 0`);
+        bar.setAttribute('position', `${xPos} ${normalizedHeight / 2} 0`); // Y = height/2 so bottom touches ground
+        bar.setAttribute('shadow', 'cast: true');
         
-        // Add animation
+        // Add animation - grow from ground up
         bar.setAttribute('animation', {
             property: 'scale',
-            from: '1 0 1',
+            from: '1 0.01 1',
             to: '1 1 1',
-            dur: 1000,
+            dur: 800,
             delay: index * 100,
-            easing: 'easeOutElastic'
+            easing: 'easeOutCubic'
         });
         
-        // Add label
-        const text = document.createElement('a-text');
-        text.setAttribute('value', `${label}\n${values[index]}`);
-        text.setAttribute('align', 'center');
-        text.setAttribute('color', '#ffffff');
-        text.setAttribute('scale', '0.3 0.3 0.3');
-        text.setAttribute('position', `${xPos} ${normalizedHeight + 0.3} 0`);
+        // Add value label on top of bar
+        const valueText = document.createElement('a-text');
+        valueText.setAttribute('value', values[index].toString());
+        valueText.setAttribute('align', 'center');
+        valueText.setAttribute('color', '#ffffff');
+        valueText.setAttribute('width', '1.5');
+        valueText.setAttribute('position', `${xPos} ${normalizedHeight + 0.2} 0`);
+        valueText.setAttribute('look-at', '[camera]');
+        
+        // Add label at ground level
+        const labelText = document.createElement('a-text');
+        labelText.setAttribute('value', label);
+        labelText.setAttribute('align', 'center');
+        labelText.setAttribute('color', '#ffffff');
+        labelText.setAttribute('width', '1.2');
+        labelText.setAttribute('position', `${xPos} -0.15 0`);
+        labelText.setAttribute('look-at', '[camera]');
         
         container.appendChild(bar);
-        container.appendChild(text);
+        container.appendChild(valueText);
+        container.appendChild(labelText);
     });
     
-    // Add title
+    // Add chart title above everything
     if (appState.data.title) {
         const title = document.createElement('a-text');
         title.setAttribute('value', appState.data.title);
         title.setAttribute('align', 'center');
         title.setAttribute('color', '#4A90E2');
-        title.setAttribute('scale', '0.5 0.5 0.5');
-        title.setAttribute('position', `0 2.5 0`);
+        title.setAttribute('width', '3');
+        title.setAttribute('position', `0 ${maxHeight + 0.5} 0`);
+        title.setAttribute('look-at', '[camera]');
         container.appendChild(title);
     }
     
+    // Add ground reference plane under chart
+    const basePlane = document.createElement('a-plane');
+    basePlane.setAttribute('width', labels.length * spacing + 0.5);
+    basePlane.setAttribute('height', '0.5');
+    basePlane.setAttribute('color', '#16213e');
+    basePlane.setAttribute('opacity', '0.3');
+    basePlane.setAttribute('position', '0 -0.25 0');
+    basePlane.setAttribute('rotation', '-90 0 0');
+    container.appendChild(basePlane);
+    
+    console.log('✅ Bar chart created with', labels.length, 'bars');
     return container;
 }
 
 function createPieChart(position) {
     const container = document.createElement('a-entity');
-    container.setAttribute('position', position);
+    container.setAttribute('position', `${position.x} ${position.y} ${position.z}`);
     
     const values = appState.data.values;
     const labels = appState.data.labels;
     const colors = appState.data.colors;
     const total = values.reduce((sum, val) => sum + val, 0);
     
+    console.log('Creating pie chart with', values.length, 'slices');
+    
     let currentAngle = 0;
     const radius = 0.8;
+    const pieHeight = 0.3; // Height of pie above ground
     
     values.forEach((value, index) => {
         const percentage = value / total;
         const angle = percentage * 360;
         
-        // Create slice (simplified as a box for now)
+        // Create slice (simplified as wedge)
         const slice = document.createElement('a-box');
         const sliceAngle = (currentAngle + angle / 2) * (Math.PI / 180);
-        const x = Math.cos(sliceAngle) * radius * 0.5;
-        const z = Math.sin(sliceAngle) * radius * 0.5;
+        const x = Math.cos(sliceAngle) * radius * 0.4;
+        const z = Math.sin(sliceAngle) * radius * 0.4;
         
         slice.setAttribute('width', radius * percentage * 2);
-        slice.setAttribute('height', 0.2);
-        slice.setAttribute('depth', radius * 0.3);
+        slice.setAttribute('height', pieHeight);
+        slice.setAttribute('depth', radius * 0.4);
         slice.setAttribute('color', colors[index]);
-        slice.setAttribute('position', `${x} 0 ${z}`);
+        slice.setAttribute('position', `${x} ${pieHeight / 2} ${z}`);
         slice.setAttribute('rotation', `0 ${currentAngle + angle / 2} 0`);
+        slice.setAttribute('shadow', 'cast: true');
         
-        // Add label
+        // Add label with percentage
         const text = document.createElement('a-text');
         text.setAttribute('value', `${labels[index]}\n${(percentage * 100).toFixed(1)}%`);
         text.setAttribute('align', 'center');
         text.setAttribute('color', '#ffffff');
-        text.setAttribute('scale', '0.3 0.3 0.3');
-        text.setAttribute('position', `${x * 1.5} 0.3 ${z * 1.5}`);
+        text.setAttribute('width', '1.5');
+        text.setAttribute('position', `${x * 1.8} ${pieHeight + 0.3} ${z * 1.8}`);
+        text.setAttribute('look-at', '[camera]');
         
         container.appendChild(slice);
         container.appendChild(text);
@@ -557,26 +580,37 @@ function createPieChart(position) {
         currentAngle += angle;
     });
     
-    // Add title
+    // Add title above pie
     if (appState.data.title) {
         const title = document.createElement('a-text');
         title.setAttribute('value', appState.data.title);
         title.setAttribute('align', 'center');
         title.setAttribute('color', '#4A90E2');
-        title.setAttribute('scale', '0.5 0.5 0.5');
-        title.setAttribute('position', '0 1.5 0');
+        title.setAttribute('width', '3');
+        title.setAttribute('position', `0 ${pieHeight + 1} 0`);
+        title.setAttribute('look-at', '[camera]');
         container.appendChild(title);
     }
+    
+    // Add base circle on ground
+    const base = document.createElement('a-circle');
+    base.setAttribute('radius', radius * 0.9);
+    base.setAttribute('color', '#16213e');
+    base.setAttribute('opacity', '0.3');
+    base.setAttribute('rotation', '-90 0 0');
+    base.setAttribute('position', '0 0.01 0');
+    container.appendChild(base);
     
     // Add rotation animation
     container.setAttribute('animation', {
         property: 'rotation',
         to: '0 360 0',
         loop: true,
-        dur: 10000,
+        dur: 15000,
         easing: 'linear'
     });
     
+    console.log('✅ Pie chart created with', values.length, 'slices');
     return container;
 }
 
@@ -597,6 +631,8 @@ function rotateChart(degrees) {
         y: newY,
         z: currentRotation.z
     });
+    
+    console.log('Chart rotated to:', newY);
 }
 
 function scaleChart(factor) {
@@ -610,28 +646,42 @@ function scaleChart(factor) {
         z: currentScale.z * factor
     };
     
-    // Limit scale
-    if (newScale.x < 0.2 || newScale.x > 3) return;
+    // Limit scale between 0.3 and 3
+    if (newScale.x < 0.3 || newScale.x > 3) {
+        console.log('Scale limit reached');
+        return;
+    }
     
     appState.currentChart.setAttribute('scale', newScale);
+    console.log('Chart scaled to:', newScale.x.toFixed(2));
+}
+
+function resetChart() {
+    if (!appState.currentChart) return;
+    
+    appState.currentChart.setAttribute('rotation', '0 0 0');
+    appState.currentChart.setAttribute('scale', '1 1 1');
+    
+    console.log('Chart reset to default position and scale');
 }
 
 function deleteChart() {
     if (!appState.currentChart) return;
     
     const chartContainer = document.getElementById('chart-container');
-    const reticle = document.getElementById('reticle');
+    const placementMarker = document.getElementById('placement-marker');
     const sideControls = document.querySelector('.side-controls');
     const placeBtn = document.getElementById('place-chart-btn');
     const statusText = document.getElementById('status-text');
     
     // Remove chart
-    chartContainer.removeChild(appState.currentChart);
+    chartContainer.innerHTML = '';
     appState.currentChart = null;
+    console.log('Chart deleted');
     
-    // Show reticle and place button again
-    if (reticle) {
-        reticle.setAttribute('visible', true);
+    // Show placement marker again
+    if (placementMarker) {
+        placementMarker.setAttribute('visible', true);
     }
     
     if (sideControls) {
@@ -643,8 +693,10 @@ function deleteChart() {
     }
     
     if (statusText) {
-        statusText.textContent = 'Tap "Place Chart" to create visualization';
+        statusText.textContent = 'Tap "Place Chart" to visualize your data';
     }
+    
+    console.log('Ready to place new chart');
 }
 
 // ==================== Export for global access ====================
